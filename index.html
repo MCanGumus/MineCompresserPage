@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>CG Converter</title>
+    <title>CG Compresser</title>
 
     <link rel="stylesheet" type="text/css" href="style.css"></head>
 <body>
@@ -21,7 +21,7 @@
                 <nav>
                    <ul>
                        <li>
-                           <a href="https://cg-converter-mainpage.herokuapp.com/">Anasayfa</a>
+                           <a href="https://cg-converter-mainpage.herokuapp.com/">Proje Raporu</a>
                        </li>
                        <li>
                            <a href="https://www.youtube.com/channel/UC4C5t1AK-rgvE5w19nu899g">Youtube</a>
@@ -37,13 +37,97 @@
 
             </header>
             <div class="banner">
-                <p>Alttan Jpeg'e dönüştürmek istediğiniz fotoğrafı seçin.</p>
-                <br>
-                <div class="file">
-                    <input type="file" id="filename"/>
+                <p>Sıkıştırmak istediğiniz fotoğrafı seçin.</p>
+                <div>
+                    <label for="web-worker">Fotoğraf Seçin ->
+                         <span id="web-worker-progress"></span>
+                        <input id="web-worker" type="file" accept="image/*" onchange="compressImage(event, true);">
+                    </label>
+                    <p id="web-worker-log"></p>
                 </div>
-
-                <button ID="btn1" class="btnConvert">Dönüştür</button>
+                <hr>
+                
+                <table id="tableSikistir">
+                    <tr>
+                        <td>Girilen Görüntü</td>
+                        
+                        <td>Sıkıştırılan Görüntü</td>
+                    </tr>
+                    <tr>
+                        <td><img id="preview" /></td>
+                        <td><img id="preview-after-compress" /></td>
+                    </tr>
+                </table>
+                
+                <style>
+                    table, th, td {
+                        border: 1px solid black;
+                        border-collapse: collapse;
+                    }
+                
+                    td {
+                        vertical-align: top;
+                        width: 50%;
+                    }
+                
+                    img {
+                        max-width: 100%;
+                    }
+                </style>
+                
+                
+                <script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"></script>
+                <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@1.0.14/dist/browser-image-compression.js"></script>
+                <script>
+                  document.querySelector('#version').innerHTML = imageCompression.version
+                  function compressImage (event, useWebWorker) {
+                    var file = event.target.files[0]
+                    var logDom, progressDom
+                    if (useWebWorker) {
+                      logDom = document.querySelector('#web-worker-log')
+                      progressDom = document.querySelector('#web-worker-progress')
+                    } else {
+                      logDom = document.querySelector('#main-thread-log')
+                      progressDom = document.querySelector('#main-thread-progress')
+                    }
+                    document.getElementById('preview').src = URL.createObjectURL(file)
+                
+                    logDom.innerHTML = ' Girilen Görüntünün Boyutu :' + (file.size / 1024 / 1024).toFixed(2) + ' MB  ||'
+                    console.log('input', file)
+                    imageCompression.getExifOrientation(file).then(function (o) {
+                      console.log('ExifOrientation', o)
+                    })
+                
+                    var options = {
+                      maxSizeMB: 2,
+                      maxWidthOrHeight: 1024,
+                      useWebWorker: useWebWorker,
+                      onProgress: onProgress
+                    }
+                    imageCompression(file, options).then(function (output) {
+                        logDom.innerHTML += ' Sıkıştırılan Görüntü Boyutu :' + (output.size / 1024 / 1024).toFixed(2) + ' MB <br>'
+                        console.log('output', output)
+                        const downloadLink = URL.createObjectURL(output)
+                        logDom.innerHTML += '&nbsp;<a href="' + downloadLink + '" download="' + file.name + '">Sıkıştırılmış Fotoğrafı İndir</a>'
+                        document.getElementById('preview-after-compress').src = downloadLink
+                    })
+                
+                    // await uploadToServer(output)
+                
+                    function onProgress (p) {
+                      progressDom.innerHTML = '(' + p + '%' + ')'
+                    }
+                  }
+                
+                  function uploadToServer (file) {
+                    var formData = new FormData()
+                    formData.append('image', file)
+                    return fetch('http://localhost/image-upload-api', {
+                      method: 'POST',
+                      body: formData
+                    })
+                  }
+                </script>
 
             </div>
                
